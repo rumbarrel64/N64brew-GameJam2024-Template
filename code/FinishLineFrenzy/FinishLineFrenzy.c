@@ -14,8 +14,15 @@
 // Global Variable
 surface_t *depthBuffer;
 T3DViewport viewport;
-T3DModel *sphere;
 T3DModel *flatplane;
+
+
+T3DModel *sphere_model;
+rspq_block_t *sphere_dl;
+T3DMat4FP sphere_matrix;
+
+
+
 // Camera Postition
 //                 X     Y       Z
 T3DVec3 camPos = {{0.0f, 125.0f, -50.0f}};
@@ -41,11 +48,20 @@ void minigame_init()
     viewport = t3d_viewport_create();
     
     //Load in graphics from blender
-    sphere = t3d_model_load("rom:/FinishLineFrenzy/sphere.t3dm");
+    sphere_model = t3d_model_load("rom:/FinishLineFrenzy/sphere.t3dm");
     flatplane = t3d_model_load("rom:/FinishLineFrenzy/flatplane.t3dm");
+
+    // Draw the flatplane aka map
+    //t3d_model_draw(flatplane);
+
+    // draw the sphere aka actor
+    rspq_block_begin();
+      t3d_matrix_set(&sphere_matrix, true);
+      t3d_model_draw(sphere_model);
+      sphere_dl = rspq_block_end();
     
-    //Set time to 10 seconds 
-    timer = 10.0f;
+    //Set time to 1 seconds. When time runs out game ends 
+    timer = 1.0f;
 
 }
 
@@ -72,7 +88,11 @@ void minigame_loop(float deltatime)
     T3DVec3 lightDirVec = (T3DVec3){{1.0f, 1.0f, 1.0f}};
     t3d_vec3_norm(&lightDirVec);
     //Setup camera matrix
-    t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(90.0f), 20.0f, 160.0f);
+    t3d_viewport_set_projection(&viewport, 
+                                T3D_DEG_TO_RAD(90.0f), // Feild of View
+                                20.0f,  // Near Plane distance (i.e. Near Clipping)
+                                160.0f //Far plane distance >= 40 (i.e. Far Clipping)
+    );
     // Setup View Matrix
     t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
     
@@ -92,12 +112,27 @@ void minigame_loop(float deltatime)
     t3d_light_set_directional(0, colorDir, &lightDirVec);
     t3d_light_set_count(1);
     
-    
-    // Draw the flatplane aka map
-    t3d_model_draw(flatplane);
+	t3d_matrix_push_pos(1);
 
-    // draw the sphere
-    t3d_model_draw(sphere);
+    t3d_mat4fp_from_srt_euler(
+        &sphere_matrix,
+        (float[3]){1, 1, 1}, // Scale
+        (float[3]){0, 0, 0}, // Rotation
+        //Position X  Y  Z
+        (float[3]){10, // X (Positive: Left, Max: 265 Negative: Right Min: -265. Measured from middle of object????
+                   10, // Y (Positive: Up, Max: 75 Image Warped Negative: Down Min: -250 Image Warped. Measured from middle of object????
+                   0  // Z
+        }  
+
+    );
+
+    rspq_block_run(sphere_dl);
+
+	t3d_matrix_pop(1);
+
+    // Draw the flatplane aka map
+    t3d_model_draw(sphere_model);
+
     rdpq_detach_show();
     
 
@@ -108,5 +143,15 @@ void minigame_cleanup()
 
     // Remove tiny3d object (unregister)
     t3d_destroy();
+
+    // Removed graphics from blender 
+    t3d_model_free(sphere_model);
+    t3d_model_free(flatplane);
+
+    // Remove rspq block???
+    rspq_block_free(sphere_dl);
+
+    // Remove minigame display object 
+    display_close();
 
 }
