@@ -19,9 +19,7 @@ T3DModel *flatplane;
 
 T3DModel *sphere_model;
 rspq_block_t *sphere_dl;
-T3DMat4FP sphere_matrix;
-
-
+T3DMat4FP* sphere_matrix;
 
 // Camera Postition
 //                 X     Y       Z
@@ -54,11 +52,16 @@ void minigame_init()
     // Draw the flatplane aka map
     //t3d_model_draw(flatplane);
 
+    //UNKNOWN
+    sphere_matrix = (T3DMat4FP*)malloc_uncached(sizeof(T3DMat4FP));
+
+    t3d_matrix_set(sphere_matrix, true);
+
     // draw the sphere aka actor
     rspq_block_begin();
-      t3d_matrix_set(&sphere_matrix, true);
-      t3d_model_draw(sphere_model);
-      sphere_dl = rspq_block_end();
+    t3d_matrix_set(sphere_matrix, true);
+    t3d_model_draw(sphere_model);
+    sphere_dl = rspq_block_end();
     
     //Set time to 1 seconds. When time runs out game ends 
     timer = 1.0f;
@@ -115,12 +118,12 @@ void minigame_loop(float deltatime)
 	t3d_matrix_push_pos(1);
 
     t3d_mat4fp_from_srt_euler(
-        &sphere_matrix,
+        sphere_matrix,
         (float[3]){1, 1, 1}, // Scale
         (float[3]){0, 0, 0}, // Rotation
         //Position X  Y  Z
-        (float[3]){10, // X (Positive: Left, Max: 265 Negative: Right Min: -265. Measured from middle of object????
-                   10, // Y (Positive: Up, Max: 75 Image Warped Negative: Down Min: -250 Image Warped. Measured from middle of object????
+        (float[3]){0, // X (Positive: Left, Max: 265 Negative: Right Min: -265. Measured from middle of object????
+                   75, // Y (Positive: Up, Max: 75 Image Warped Negative: Down Min: -250 Image Warped. Measured from middle of object????
                    0  // Z
         }  
 
@@ -131,7 +134,7 @@ void minigame_loop(float deltatime)
 	t3d_matrix_pop(1);
 
     // Draw the flatplane aka map
-    t3d_model_draw(sphere_model);
+    //t3d_model_draw(flatplane);
 
     rdpq_detach_show();
     
@@ -153,5 +156,7 @@ void minigame_cleanup()
 
     // Remove minigame display object 
     display_close();
+
+    free_uncached(sphere_matrix);
 
 }
