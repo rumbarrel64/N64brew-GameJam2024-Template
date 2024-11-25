@@ -122,9 +122,9 @@ void minigame_loop(float deltatime)
         (float[3]){1, 1, 1}, // Scale
         (float[3]){0, 0, 0}, // Rotation
         //Position X  Y  Z
-        (float[3]){0, // X (Positive: Left, Max: 265 Negative: Right Min: -265. Measured from middle of object????
-                   75, // Y (Positive: Up, Max: 75 Image Warped Negative: Down Min: -250 Image Warped. Measured from middle of object????
-                   0  // Z
+        (float[3]){0, // X (Positive: Left, Max: 265 Negative: Right Min: -265. Measured from middle of object? Based on Blender Origin
+                   0, // Z (Closer or further away from camera)
+                   360  // Y (Positive: Up, Max: 360 / Negative: Down, Min: -360 Image Warped. Measured from middle of object? Based on Blender Origin
         }  
 
     );
