@@ -1,9 +1,8 @@
+// Include files
 #include <libdragon.h>
 #include "../../core.h"
 #include "../../minigame.h"
-// For debugging in console
-#include <stdio.h>
-
+#include <stdio.h>// For debugging in console
 #include <t3d/t3d.h>
 #include <t3d/t3dmath.h>
 #include <t3d/t3dmodel.h>
@@ -15,11 +14,15 @@
 surface_t *depthBuffer;
 T3DViewport viewport;
 T3DModel *flatplane;
-
-
 T3DModel *sphere_model;
 rspq_block_t *sphere_dl;
 T3DMat4FP* sphere_matrix;
+joypad_port_t port; // Needed for controls
+float speed = 0.0f; // For updating speed of mesh
+T3DVec3 newDir = {0}; // For updating postion of mesh
+T3DVec3 moveDir;
+float currSpeed;
+T3DVec3 spherePos;
 
 // Camera Postition
 //                 X     Y       Z
@@ -57,6 +60,19 @@ void minigame_init()
 
     t3d_matrix_set(sphere_matrix, true);
 
+    // Initialize the starting point of the sphere mesh matrix
+    t3d_mat4fp_from_srt_euler(
+        sphere_matrix,
+        (float[3]){1, 1, 1}, // Scale
+        (float[3]){0, 0, 0}, // Rotation
+        //Position X  Y  Z
+        (float[3]){0, // X (Positive: Left, Max: 265 Negative: Right Min: -265. Measured from middle of object? Based on Blender Origin
+                   0, // Z (Closer or further away from camera)
+                   360  // Y (Positive: Up, Max: 360 / Negative: Down, Min: -360 Image Warped. Measured from middle of object? Based on Blender Origin
+        }  
+
+    );
+
     // draw the sphere aka actor
     rspq_block_begin();
     t3d_matrix_set(sphere_matrix, true);
@@ -64,7 +80,7 @@ void minigame_init()
     sphere_dl = rspq_block_end();
     
     //Set time to 1 seconds. When time runs out game ends 
-    timer = 1.0f;
+    timer = 100.0f;
 
 }
 
@@ -74,7 +90,7 @@ void minigame_fixedloop(float deltatime)
     timer -= deltatime;
 
     // use stdio to print out timeleft as error
-    fprintf(stderr, "Time left %f\n", timer);
+    //fprintf(stderr, "Time left %f\n", timer);
 
     if(timer <= 0.0f) {
         minigame_end();
@@ -117,25 +133,63 @@ void minigame_loop(float deltatime)
     
 	t3d_matrix_push_pos(1);
 
-    t3d_mat4fp_from_srt_euler(
-        sphere_matrix,
-        (float[3]){1, 1, 1}, // Scale
-        (float[3]){0, 0, 0}, // Rotation
-        //Position X  Y  Z
-        (float[3]){0, // X (Positive: Left, Max: 265 Negative: Right Min: -265. Measured from middle of object? Based on Blender Origin
-                   0, // Z (Closer or further away from camera)
-                   360  // Y (Positive: Up, Max: 360 / Negative: Down, Min: -360 Image Warped. Measured from middle of object? Based on Blender Origin
-        }  
-
-    );
-
     rspq_block_run(sphere_dl);
 
 	t3d_matrix_pop(1);
 
-    // Draw the flatplane aka map
-    //t3d_model_draw(flatplane);
+    // For detecting if a player hit start
+    joypad_buttons_t btn = joypad_get_buttons_pressed(port);
 
+    // If the player presses start end game
+	if (btn.start) minigame_end();
+
+    // For detecting if the player uses the joystick
+    joypad_inputs_t joypad = joypad_get_inputs(port);
+
+    newDir.v[0] = (float)joypad.stick_x * 0.05f;
+    newDir.v[2] = -(float)joypad.stick_y * 0.05f;
+    
+    // For tracking joystick movements
+    //fprintf(stderr, "Joystick X %f\n", newDir);
+    
+    // Only update speed if a non-zero value is detected. i.e. when inputs are pushed for controler 1
+    if (newDir.v[0] != 0 || newDir.v[2] != 0) {
+        speed = sqrtf(t3d_vec3_len2(&newDir));
+    };
+
+    // Player movement
+    if(speed > 0.15f) {
+    newDir.v[0] /= speed;
+    newDir.v[2] /= speed;
+    moveDir = newDir;
+
+    currSpeed = t3d_lerp(currSpeed, speed * 0.3f, 0.15f);
+  } else {
+    currSpeed *= 0.64f;
+  }
+
+    // move player...
+    spherePos.v[0] += moveDir.v[0] * currSpeed;
+    spherePos.v[2] += moveDir.v[2] * currSpeed;
+
+
+    // For tracking joystick movements
+    fprintf(stderr, "Check Speed %f\n", spherePos.v[0]);
+    
+    // Update player matrix. Based on user inputs
+    t3d_mat4fp_from_srt_euler(
+    sphere_matrix,
+    (float[3]){1, 1, 1}, // Scale
+    (float[3]){0, 0, 0}, // Rotation
+    //Position X  Y  Z
+    (float[3]){spherePos.v[0], // X (Positive: Left, Max: 265 Negative: Right Min: -265. Measured from middle of object? Based on Blender Origin
+               0, // Z (Closer or further away from camera)
+               spherePos.v[2] // Y (Positive: Up, Max: 360 / Negative: Down, Min: -360 Image Warped. Measured from middle of object? Based on Blender Origin
+        }  
+
+    ); 
+    
+    
     rdpq_detach_show();
     
 
