@@ -10,7 +10,7 @@
 #include <t3d/t3danim.h>
 #include <t3d/t3ddebug.h>
 
-// Global Variable
+// Global Variable(s)
 surface_t *depthBuffer;
 T3DViewport viewport;
 T3DModel *flatplane;
@@ -23,6 +23,8 @@ T3DVec3 newDir = {0}; // For updating postion of mesh
 T3DVec3 moveDir;
 float currSpeed;
 T3DVec3 spherePos;
+// For testing postion
+T3DVec3 OldspherePos;
 
 // Camera Postition
 //                 X     Y       Z
@@ -68,7 +70,7 @@ void minigame_init()
         //Position X  Y  Z
         (float[3]){0, // X (Positive: Left, Max: 265 Negative: Right Min: -265. Measured from middle of object? Based on Blender Origin
                    0, // Z (Closer or further away from camera)
-                   360  // Y (Positive: Up, Max: 360 / Negative: Down, Min: -360 Image Warped. Measured from middle of object? Based on Blender Origin
+                   0  // Y (Positive: Up, Max: 360 / Negative: Down, Min: -360 Image Warped. Measured from middle of object? Based on Blender Origin
         }  
 
     );
@@ -149,9 +151,6 @@ void minigame_loop(float deltatime)
     newDir.v[0] = (float)joypad.stick_x * 0.05f;
     newDir.v[2] = -(float)joypad.stick_y * 0.05f;
     
-    // For tracking joystick movements
-    //fprintf(stderr, "Joystick X %f\n", newDir);
-    
     // Only update speed if a non-zero value is detected. i.e. when inputs are pushed for controler 1
     if (newDir.v[0] != 0 || newDir.v[2] != 0) {
         speed = sqrtf(t3d_vec3_len2(&newDir));
@@ -168,20 +167,30 @@ void minigame_loop(float deltatime)
     currSpeed *= 0.64f;
   }
 
-    // move player...
-    spherePos.v[0] += moveDir.v[0] * currSpeed;
-    spherePos.v[2] += moveDir.v[2] * currSpeed;
+    // move player. Multiply by negative one to get directions correct
+    spherePos.v[0] += moveDir.v[0] * currSpeed * -1;
+    spherePos.v[2] += moveDir.v[2] * currSpeed * -1;
+    // 100 ball touches top / -44 ball touches bottom
+    // 62 ball otuches left// -62 ball touches right
+    // ...and limit position inside the box
+    const float HORIZONTAL_LIMIT = 85.0f;
+     if(spherePos.v[0] < -HORIZONTAL_LIMIT)spherePos.v[0] = -HORIZONTAL_LIMIT;
+    if(spherePos.v[0] >  HORIZONTAL_LIMIT)spherePos.v[0] =  HORIZONTAL_LIMIT;
+    //if(player->playerPos.v[2] < -BOX_SIZE)player->playerPos.v[2] = -BOX_SIZE;
+    //if(player->playerPos.v[2] >  BOX_SIZE)player->playerPos.v[2] =  BOX_SIZE;
 
 
-    // For tracking joystick movements
-    fprintf(stderr, "Check Speed %f\n", spherePos.v[0]);
-    
     // Update player matrix. Based on user inputs
     t3d_mat4fp_from_srt_euler(
     sphere_matrix,
-    (float[3]){1, 1, 1}, // Scale
-    (float[3]){0, 0, 0}, // Rotation
-    //Position X  Y  Z
+    // Scale
+    (float[3]){1, 1, 1}, 
+     // Rotation
+    (float[3]){spherePos.v[0], // X (Rotate left or right)
+               0, 
+               spherePos.v[2] // Y (Rotate up or down)
+        },
+    //Position
     (float[3]){spherePos.v[0], // X (Positive: Left, Max: 265 Negative: Right Min: -265. Measured from middle of object? Based on Blender Origin
                0, // Z (Closer or further away from camera)
                spherePos.v[2] // Y (Positive: Up, Max: 360 / Negative: Down, Min: -360 Image Warped. Measured from middle of object? Based on Blender Origin
@@ -191,7 +200,14 @@ void minigame_loop(float deltatime)
     
     
     rdpq_detach_show();
-    
+
+    //Print postion of sphere
+    if(spherePos.v[0] != OldspherePos.v[0] || spherePos.v[2] != OldspherePos.v[2]) {
+     fprintf(stderr, "X: %f\n", spherePos.v[0]);
+     fprintf(stderr, "Y: %f\n", spherePos.v[2]);
+     OldspherePos.v[0] = spherePos.v[0];
+     OldspherePos.v[2] = spherePos.v[2];
+    };
 
 }
 
